@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files: []
+
+scrape_configs:
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'fb-collector'
+    static_configs:
+      - targets: ['fb-collector:3002']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'ttk-collector'
+    static_configs:
+      - targets: ['ttk-collector:3003']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'reporter'
+    static_configs:
+      - targets: ['reporter:3004']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

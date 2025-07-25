@@ -1,0 +1,193 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Event Processing System",
+    "tags": ["event-processing"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Gateway - Accepted Events",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "events_accepted_total{service=\"gateway\"}",
+            "legendFormat": "{{source}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Gateway - Processed Events",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "events_processed_total{service=\"gateway\"}",
+            "legendFormat": "{{source}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 8,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Gateway - Failed Events",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "events_failed_total{service=\"gateway\"}",
+            "legendFormat": "{{source}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 16,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Collectors - Event Processing Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(events_processed_total{service=~\".*-collector\"}[1m])",
+            "legendFormat": "{{service}} - {{source}}"
+          }
+        ],
+        "xAxis": {
+          "show": true
+        },
+        "yAxes": [
+          {
+            "label": "Events/sec",
+            "show": true
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 6
+        }
+      },
+      {
+        "id": 5,
+        "title": "Reporter - Report Latency",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(report_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile - {{report_type}}"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(report_duration_seconds_bucket[5m]))",
+            "legendFormat": "50th percentile - {{report_type}}"
+          }
+        ],
+        "xAxis": {
+          "show": true
+        },
+        "yAxes": [
+          {
+            "label": "Seconds",
+            "show": true
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 14
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "10s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+  }
+}
