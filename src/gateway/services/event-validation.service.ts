@@ -9,7 +9,7 @@ export class EventValidationService {
 
   validateEvent(data: any): Event {
     try {
-      const validatedEvent = EventSchema.parse(data);
+      const validatedEvent = EventSchema.parse(data) as Event;
       this.logger.debug('Event validation successful', { eventId: validatedEvent.eventId });
       return validatedEvent;
     } catch (error) {

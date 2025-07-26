@@ -1,16 +1,17 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { Subscription } from 'nats';
+import { JetStreamSubscription, consumerOpts, ConsumerOptsBuilder } from 'nats';
 import { NatsService } from '../../shared/services/nats.service';
 import { DatabaseService } from '../../shared/services/database.service';
 import { MetricsService } from '../../shared/services/metrics.service';
 import { Logger } from '../../shared/utils/logger';
 import { Event } from '../../shared/types/events';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export abstract class BaseCollectorService implements OnModuleInit, OnModuleDestroy {
-  protected subscription: Subscription;
+  protected subscription: JetStreamSubscription;
   protected readonly logger: Logger;
-  
+
   constructor(
     protected readonly serviceName: string,
     protected readonly subject: string,
@@ -33,30 +34,27 @@ export abstract class BaseCollectorService implements OnModuleInit, OnModuleDest
 
   private async subscribeToEvents() {
     try {
-      const jetstream = this.natsService.getJetStream();
-      const consumer = await jetstream.consumers.get('EVENTS', {
-        durable_name: `${this.serviceName}-consumer`,
-        filter_subject: this.subject,
-        ack_policy: 'explicit',
-      });
+      const js = this.natsService.getJetStream();
+      const opts: ConsumerOptsBuilder = consumerOpts();
+      opts.durable(`${this.serviceName}-consumer`);
+      opts.ackExplicit();
+      opts.filterSubject(this.subject);
 
-      const messages = await consumer.consume();
-      
+      this.subscription = await js.subscribe(this.subject, opts);
+
       this.logger.info(`Subscribed to ${this.subject}`);
 
-      for await (const msg of messages) {
+      for await (const msg of this.subscription) {
         const correlationId = msg.headers?.get('correlation-id');
         const contextLogger = this.logger.withCorrelationId(correlationId);
-        
+
         try {
           const eventData = JSON.parse(msg.data.toString());
           contextLogger.info('Processing event', { eventId: eventData.eventId });
-          
+
           await this.processEvent(eventData, correlationId);
-          
-          this.metricsService.incrementEventsProcessed(this.serviceName, eventData.source);
           msg.ack();
-          
+          this.metricsService.incrementEventsProcessed(this.serviceName, eventData.source);
           contextLogger.info('Event processed successfully', { eventId: eventData.eventId });
         } catch (error) {
           const eventData = JSON.parse(msg.data.toString());
@@ -73,9 +71,8 @@ export abstract class BaseCollectorService implements OnModuleInit, OnModuleDest
 
   protected async processEvent(event: Event, correlationId?: string): Promise<void> {
     const contextLogger = this.logger.withCorrelationId(correlationId);
-    
+
     try {
-      // Store event
       await this.databaseService.event.create({
         data: {
           eventId: event.eventId,
@@ -83,11 +80,10 @@ export abstract class BaseCollectorService implements OnModuleInit, OnModuleDest
           source: event.source,
           funnelStage: event.funnelStage,
           eventType: event.eventType,
-          data: event.data,
+          data: event.data as unknown as Prisma.JsonValue,
         },
       });
 
-      // Store or update user
       const existingUser = await this.databaseService.user.findUnique({
         where: { userId: event.data.user.userId },
       });
@@ -97,13 +93,13 @@ export abstract class BaseCollectorService implements OnModuleInit, OnModuleDest
           data: {
             userId: event.data.user.userId,
             source: event.source,
-            userData: event.data.user,
+            userData: event.data.user as unknown as Prisma.JsonValue,
           },
         });
       } else {
         await this.databaseService.user.update({
           where: { userId: event.data.user.userId },
-          data: { userData: event.data.user },
+          data: { userData: event.data.user as unknown as Prisma.JsonValue },
         });
       }
 

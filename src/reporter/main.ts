@@ -6,14 +6,13 @@ import { Logger } from '../shared/utils/logger';
 
 async function bootstrap() {
   const logger = new Logger({ service: 'Reporter' });
-  
+
   try {
     const app = await NestFactory.create(ReporterModule);
-    
+
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     app.enableCors();
 
-    // Swagger setup
     const config = new DocumentBuilder()
       .setTitle('Reporter API')
       .setDescription('API for generating reports')
@@ -24,7 +23,7 @@ async function bootstrap() {
 
     const port = process.env.PORT || 3004;
     await app.listen(port);
-    
+
     logger.info(`Reporter service started on port ${port}`);
   } catch (error) {
     logger.error('Failed to start reporter service', error);

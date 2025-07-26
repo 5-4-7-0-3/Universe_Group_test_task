@@ -11,30 +11,30 @@ export class ReporterService {
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly metricsService: MetricsService,
-  ) {}
+  ) { }
 
   async getEventStatistics(filters: EventReportFiltersDto) {
     const timer = this.metricsService.startReportTimer('events');
-    
+
     try {
       const whereClause: any = {};
-      
+
       if (filters.from) {
         whereClause.timestamp = { ...whereClause.timestamp, gte: new Date(filters.from) };
       }
-      
+
       if (filters.to) {
         whereClause.timestamp = { ...whereClause.timestamp, lte: new Date(filters.to) };
       }
-      
+
       if (filters.source) {
         whereClause.source = filters.source;
       }
-      
+
       if (filters.funnelStage) {
         whereClause.funnelStage = filters.funnelStage;
       }
-      
+
       if (filters.eventType) {
         whereClause.eventType = filters.eventType;
       }
@@ -59,9 +59,9 @@ export class ReporterService {
         count: stat._count.id,
       }));
 
-      this.logger.info('Event statistics generated', { 
-        filters, 
-        resultCount: result.length 
+      this.logger.info('Event statistics generated', {
+        filters,
+        resultCount: result.length
       });
 
       return result;
@@ -75,7 +75,7 @@ export class ReporterService {
 
   async getRevenueData(filters: RevenueReportFiltersDto) {
     const timer = this.metricsService.startReportTimer('revenue');
-    
+
     try {
       const whereClause: any = {
         OR: [
@@ -83,15 +83,15 @@ export class ReporterService {
           { eventType: 'purchase', source: 'tiktok' },
         ],
       };
-      
+
       if (filters.from) {
         whereClause.timestamp = { ...whereClause.timestamp, gte: new Date(filters.from) };
       }
-      
+
       if (filters.to) {
         whereClause.timestamp = { ...whereClause.timestamp, lte: new Date(filters.to) };
       }
-      
+
       if (filters.source) {
         whereClause.source = filters.source;
         whereClause.OR = whereClause.OR.filter(condition => condition.source === filters.source);
@@ -112,11 +112,13 @@ export class ReporterService {
           let purchaseAmount = 0;
           let campaignId = null;
 
-          if (event.source === 'facebook' && event.data?.engagement?.purchaseAmount) {
-            purchaseAmount = parseFloat(event.data.engagement.purchaseAmount) || 0;
-            campaignId = event.data.engagement.campaignId;
-          } else if (event.source === 'tiktok' && event.data?.engagement?.purchaseAmount) {
-            purchaseAmount = parseFloat(event.data.engagement.purchaseAmount) || 0;
+          const eventData = event.data as any;
+
+          if (event.source === 'facebook' && eventData?.engagement?.purchaseAmount) {
+            purchaseAmount = parseFloat(eventData.engagement.purchaseAmount) || 0;
+            campaignId = eventData.engagement.campaignId;
+          } else if (event.source === 'tiktok' && eventData?.engagement?.purchaseAmount) {
+            purchaseAmount = parseFloat(eventData.engagement.purchaseAmount) || 0;
           }
 
           return {
@@ -128,12 +130,10 @@ export class ReporterService {
         })
         .filter(item => item.amount > 0);
 
-      // Filter by campaignId if provided
-      const filteredData = filters.campaignId 
+      const filteredData = filters.campaignId
         ? revenueData.filter(item => item.campaignId === filters.campaignId)
         : revenueData;
 
-      // Group by source and calculate totals
       const groupedRevenue = filteredData.reduce((acc, item) => {
         if (!acc[item.source]) {
           acc[item.source] = { totalRevenue: 0, transactionCount: 0 };
@@ -150,10 +150,10 @@ export class ReporterService {
         averageTransactionValue: data.totalRevenue / data.transactionCount,
       }));
 
-      this.logger.info('Revenue data generated', { 
-        filters, 
+      this.logger.info('Revenue data generated', {
+        filters,
         resultCount: result.length,
-        totalTransactions: filteredData.length 
+        totalTransactions: filteredData.length
       });
 
       return result;
@@ -167,18 +167,18 @@ export class ReporterService {
 
   async getDemographicsData(filters: BaseReportFiltersDto) {
     const timer = this.metricsService.startReportTimer('demographics');
-    
+
     try {
       const whereClause: any = {};
-      
+
       if (filters.from) {
         whereClause.createdAt = { ...whereClause.createdAt, gte: new Date(filters.from) };
       }
-      
+
       if (filters.to) {
         whereClause.createdAt = { ...whereClause.createdAt, lte: new Date(filters.to) };
       }
-      
+
       if (filters.source) {
         whereClause.source = filters.source;
       }
@@ -205,29 +205,25 @@ export class ReporterService {
       users.forEach(user => {
         if (user.source === 'facebook') {
           const userData = user.userData as any;
-          
-          // Age groups
+
           const ageGroup = this.getAgeGroup(userData.age);
           demographicsData.facebook.age[ageGroup] = (demographicsData.facebook.age[ageGroup] || 0) + 1;
-          
-          // Gender
+
           demographicsData.facebook.gender[userData.gender] = (demographicsData.facebook.gender[userData.gender] || 0) + 1;
-          
-          // Location
+
           const location = `${userData.location.city}, ${userData.location.country}`;
           demographicsData.facebook.location[location] = (demographicsData.facebook.location[location] || 0) + 1;
         } else if (user.source === 'tiktok') {
           const userData = user.userData as any;
-          
-          // Follower groups
+
           const followerGroup = this.getFollowerGroup(userData.followers);
           demographicsData.tiktok.followers[followerGroup] = (demographicsData.tiktok.followers[followerGroup] || 0) + 1;
         }
       });
 
-      this.logger.info('Demographics data generated', { 
-        filters, 
-        userCount: users.length 
+      this.logger.info('Demographics data generated', {
+        filters,
+        userCount: users.length
       });
 
       return demographicsData;

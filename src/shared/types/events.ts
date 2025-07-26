@@ -1,6 +1,5 @@
 export type FunnelStage = "top" | "bottom";
 
-// Facebook Types
 export type FacebookTopEventType = "ad.view" | "page.like" | "comment" | "video.view";
 export type FacebookBottomEventType = "ad.click" | "form.submission" | "checkout.complete";
 export type FacebookEventType = FacebookTopEventType | FacebookBottomEventType;
@@ -47,7 +46,6 @@ export interface FacebookEvent {
   };
 }
 
-// TikTok Types
 export type TiktokTopEventType = "video.view" | "like" | "share" | "comment";
 export type TiktokBottomEventType = "profile.visit" | "purchase" | "follow";
 export type TiktokEventType = TiktokTopEventType | TiktokBottomEventType;

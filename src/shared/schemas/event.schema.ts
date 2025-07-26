@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// Facebook Schemas
 const FacebookUserLocationSchema = z.object({
   country: z.string(),
   city: z.string(),
@@ -41,7 +40,6 @@ const FacebookEventSchema = z.object({
   }),
 });
 
-// TikTok Schemas
 const TiktokUserSchema = z.object({
   userId: z.string(),
   username: z.string(),

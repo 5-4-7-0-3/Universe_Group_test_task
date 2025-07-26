@@ -57,7 +57,6 @@ describe('GatewayController (e2e)', () => {
   it('/events (POST) - should reject invalid event', () => {
     const invalidEvent = {
       eventId: 'invalid_123',
-      // Missing required fields
     };
 
     return request(app.getHttpServer())

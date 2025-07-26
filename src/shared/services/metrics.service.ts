@@ -9,10 +9,8 @@ export class MetricsService {
   private readonly reportLatency: Histogram<string>;
 
   constructor() {
-    // Collect default metrics
     collectDefaultMetrics();
 
-    // Custom metrics
     this.eventsAccepted = new Counter({
       name: 'events_accepted_total',
       help: 'Total number of accepted events',

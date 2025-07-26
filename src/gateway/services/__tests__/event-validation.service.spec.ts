@@ -49,7 +49,6 @@ describe('EventValidationService', () => {
   it('should throw BadRequestException for invalid event', () => {
     const invalidEvent = {
       eventId: 'invalid_123',
-      // Missing required fields
     };
 
     expect(() => service.validateEvent(invalidEvent)).toThrow(BadRequestException);
