@@ -1,0 +1,77 @@
+# Production environment configuration
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+version: '3.8'
+
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    restart: always
+
+  nats:
+    command: ["-js", "-sd", "/data", "--user", "${NATS_USER:-nats}", "--pass", "${NATS_PASSWORD:-changeme}"]
+    restart: always
+
+  gateway:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/eventdb
+      NATS_URL: nats://${NATS_USER:-nats}:${NATS_PASSWORD:-changeme}@nats:4222
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  fb-collector:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/eventdb
+      NATS_URL: nats://${NATS_USER:-nats}:${NATS_PASSWORD:-changeme}@nats:4222
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  ttk-collector:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/eventdb
+      NATS_URL: nats://${NATS_USER:-nats}:${NATS_PASSWORD:-changeme}@nats:4222
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  reporter:
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-changeme}@postgres:5432/eventdb
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  prometheus:
+    restart: always
+
+  grafana:
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    restart: always

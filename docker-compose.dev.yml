@@ -1,0 +1,49 @@
+# Development environment configuration
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # Override for development
+  gateway:
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+
+  fb-collector:
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+
+  ttk-collector:
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+
+  reporter:
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+
+  # Development tools
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
