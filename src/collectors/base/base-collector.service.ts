@@ -23,6 +23,7 @@ export abstract class BaseCollectorService implements OnModuleInit, OnModuleDest
   }
 
   async onModuleInit() {
+    await this.natsService.waitForReady();
     await this.subscribeToEvents();
   }
 
@@ -34,7 +35,10 @@ export abstract class BaseCollectorService implements OnModuleInit, OnModuleDest
 
   private async subscribeToEvents() {
     try {
-      const js = this.natsService.getJetStream();
+      const js = await this.natsService.getJetStream();
+      if (!js) {
+        throw new Error('JetStream client is not initialized');
+      }
       const opts: ConsumerOptsBuilder = consumerOpts();
       opts.durable(`${this.serviceName}-consumer`);
       opts.ackExplicit();

@@ -24,18 +24,25 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
   private jsm: JetStreamManager;
   private readonly stringCodec = StringCodec();
   private readonly logger = new Logger({ service: 'NatsService' });
+  private initializationPromise: Promise<void>;
 
-  constructor(private configService: ConfigService) { }
+  constructor(private configService: ConfigService) {
+    this.initializationPromise = this.initialize();
+  }
 
   async onModuleInit() {
-    await this.connect();
-    await this.setupStreams();
+    await this.initializationPromise;
   }
 
   async onModuleDestroy() {
     if (this.connection) {
       await this.connection.close();
     }
+  }
+
+  private async initialize() {
+    await this.connect();
+    await this.setupStreams();
   }
 
   private async connect() {
@@ -92,6 +99,8 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
     data: any,
     correlationId?: string
   ): Promise<void> {
+    await this.initializationPromise;
+
     try {
       const payload = this.stringCodec.encode(JSON.stringify(data));
 
@@ -111,11 +120,21 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  getJetStream(): JetStreamClient {
+  async getJetStream(): Promise<JetStreamClient> {
+    await this.initializationPromise;
     return this.jetstream;
   }
 
-  getConnection(): NatsConnection {
+  async getConnection(): Promise<NatsConnection> {
+    await this.initializationPromise;
     return this.connection;
+  }
+
+  private isReady = false;
+
+  async waitForReady(): Promise<void> {
+    while (!this.isReady) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
 }
