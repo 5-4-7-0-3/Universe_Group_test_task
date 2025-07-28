@@ -1,150 +1,249 @@
 # Event Processing System
 
-A comprehensive event processing system built with NestJS, NATS JetStream, and PostgreSQL that handles webhook events from multiple sources (Facebook and TikTok), processes them through collectors, and provides detailed reporting capabilities.
+Комплексна система обробки подій, побудована на NestJS, NATS JetStream та PostgreSQL, яка обробляє webhook-події з декількох джерел (Facebook та TikTok), обробляє їх через колектори та надає детальні звіти.
 
-## Architecture
+## Що це за додаток?
 
-The system consists of the following services:
+Event Processing System - це розподілена система для збору, обробки та аналізу подій з соціальних мереж. Система призначена для:
 
-- **Gateway**: Receives webhook events and publishes them to NATS JetStream
-- **Facebook Collector**: Processes Facebook events and stores them in the database
-- **TikTok Collector**: Processes TikTok events and stores them in the database
-- **Reporter**: Provides API endpoints for generating various reports
-- **Publisher**: Docker image that generates sample events (provided)
+- **Збору подій**: Прийом webhook-подій від Facebook та TikTok через єдиний Gateway API
+- **Асинхронної обробки**: Використання NATS JetStream для надійної доставки повідомлень між сервісами
+- **Збереження даних**: Структуроване зберігання подій та користувацьких даних в PostgreSQL
+- **Аналітики**: Генерація звітів про події, доходи та демографічні дані
+- **Моніторингу**: Відстеження метрик через Prometheus та візуалізація в Grafana
 
-## Infrastructure
+### Основні компоненти
 
-- **NATS JetStream**: Message broker for event streaming
-- **PostgreSQL**: Database for storing events and user data
-- **Prometheus**: Metrics collection
-- **Grafana**: Monitoring dashboards
+1. **Gateway** - API endpoint для прийому webhook-подій
+2. **Facebook Collector** - Обробник подій від Facebook
+3. **TikTok Collector** - Обробник подій від TikTok  
+4. **Reporter** - API для генерації аналітичних звітів
+5. **Publisher** - Docker образ для генерації тестових подій
 
-## Features
+## Швидкий старт
 
-### Core Functionality
-- ✅ OOP and SOLID principles implementation
-- ✅ Event validation with Zod schemas
-- ✅ Structured logging with correlation IDs
-- ✅ Comprehensive metrics collection
-- ✅ Health checks for all services
-- ✅ Graceful shutdown handling
-- ✅ Automatic database migrations
-- ✅ Multi-environment configuration
+### Передумови
+- Docker та Docker Compose
+- 4GB вільної оперативної пам'яті
+- Порти 3000-3004, 4222, 5432, 9090 повинні бути вільними
 
-### API Endpoints
+### Запуск системи
 
-#### Gateway
-- `POST /events` - Receive webhook events
-- `GET /health/live` - Liveness probe
-- `GET /health/ready` - Readiness probe
-- `GET /metrics` - Prometheus metrics
-
-#### Reporter
-- `GET /reports/events` - Event statistics with filters
-- `GET /reports/revenue` - Revenue data from transactional events
-- `GET /reports/demographics` - User demographic information
-- `GET /health/live` - Liveness probe
-- `GET /health/ready` - Readiness probe
-- `GET /metrics` - Prometheus metrics
-
-### Monitoring Dashboards
-
-Grafana provides real-time monitoring with:
-- Gateway metrics (accepted, processed, failed events)
-- Collector processing rates (stacked time series)
-- Reporter latency by category
-- System health indicators
-
-## Quick Start
-
-1. **Clone and setup**:
+1. **Клонуйте репозиторій**:
 ```bash
 git clone <repository>
 cd event-processing-system
 ```
 
-2. **Start the entire system**:
+2. **Використайте скрипт автоматичного запуску**:
 ```bash
-docker-compose up -d
+chmod +x start.sh
+./start.sh
 ```
 
-3. **Access services**:
-- Gateway API: http://localhost:3001/api
-- Reporter API: http://localhost:3004/api
-- Grafana: http://localhost:3000 (admin/admin)
-- Prometheus: http://localhost:9090
+Скрипт автоматично:
+- Зупинить існуючі контейнери
+- Запустить інфраструктурні сервіси (PostgreSQL, NATS)
+- Запустить додаток в правильному порядку
+- Перевірить готовність кожного сервісу
+- Запустить моніторинг та publisher
 
-## Environment Variables
+### Альтернативний ручний запуск
 
-Key environment variables:
+Якщо автоматичний скрипт не працює:
 
-- `DATABASE_URL`: PostgreSQL connection string
-- `NATS_URL`: NATS server URL
-- `EVENT_ENDPOINT`: Gateway endpoint for the publisher
-- `LOG_LEVEL`: Logging level (info, debug, error)
-- `NODE_ENV`: Environment (development, staging, production)
-
-## Data Persistence
-
-- Database data persists across restarts via Docker volumes
-- NATS JetStream data persists for 7 days
-- Grafana dashboards and data sources are provisioned automatically
-
-## Development
-
-### Running Tests
 ```bash
-npm test                # Unit tests
-npm run test:e2e       # Integration tests
-npm run test:cov       # Coverage report
+# Запуск інфраструктури
+docker-compose up -d postgres nats
+sleep 10
+
+# Запуск gateway
+docker-compose up -d gateway
+sleep 10
+
+# Запуск колекторів
+docker-compose up -d fb-collector ttk-collector
+
+# Запуск reporter
+docker-compose up -d reporter
+
+# Запуск моніторингу
+docker-compose up -d prometheus grafana
+
+# Запуск publisher (генератор подій)
+docker-compose up -d publisher
 ```
 
-### Local Development
+### Перевірка стану системи
+
 ```bash
+# Використайте скрипт перевірки
+chmod +x healthcheck.sh
+./healthcheck.sh
+
+# Або перевірте вручну
+docker-compose ps
+```
+
+## Доступ до сервісів
+
+- **Gateway API**: http://localhost:3001/api
+- **Reporter API**: http://localhost:3004/api
+- **Grafana**: http://localhost:3000 (логін: admin/admin)
+- **Prometheus**: http://localhost:9090
+- **PostgreSQL**: localhost:5432 (користувач: postgres, пароль: postgres)
+- **NATS**: localhost:4222
+
+## API Endpoints
+
+### Gateway (порт 3001)
+- `POST /events` - Прийом webhook-подій
+- `GET /health/live` - Перевірка життєздатності
+- `GET /health/ready` - Перевірка готовності
+- `GET /metrics` - Prometheus метрики
+
+### Reporter (порт 3004)
+- `GET /reports/events` - Статистика подій з фільтрами
+- `GET /reports/revenue` - Дані про доходи від транзакційних подій
+- `GET /reports/demographics` - Демографічна інформація користувачів
+- `GET /health/live` - Перевірка життєздатності
+- `GET /health/ready` - Перевірка готовності
+- `GET /metrics` - Prometheus метрики
+
+### Приклади запитів
+
+```bash
+# Отримати статистику подій
+curl "http://localhost:3004/reports/events?source=facebook&from=2024-01-01"
+
+# Отримати дані про доходи
+curl "http://localhost:3004/reports/revenue?source=tiktok"
+
+# Отримати демографічні дані
+curl "http://localhost:3004/reports/demographics"
+```
+
+## Архітектура
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Publisher  │────▶│   Gateway   │────▶│    NATS     │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                                │
+                    ┌───────────────────────────┴────────────────────────┐
+                    │                                                    │
+                    ▼                                                    ▼
+         ┌──────────────────┐                                ┌──────────────────┐
+         │  FB Collector    │                                │  TTK Collector   │
+         └────────┬─────────┘                                └────────┬─────────┘
+                  │                                                    │
+                  └──────────────────┐      ┌──────────────────────────┘
+                                     ▼      ▼
+                                ┌──────────────┐
+                                │  PostgreSQL  │
+                                └──────┬───────┘
+                                       │
+                                       ▼
+                                ┌──────────────┐
+                                │   Reporter   │
+                                └──────────────┘
+```
+
+## Конфігурація
+
+### Змінні середовища
+
+Створіть файл `.env` на основі `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Основні змінні:
+- `DATABASE_URL` - Рядок підключення до PostgreSQL
+- `NATS_URL` - URL сервера NATS
+- `LOG_LEVEL` - Рівень логування (info, debug, error)
+- `BODY_SIZE_LIMIT` - Максимальний розмір тіла запиту (за замовчуванням: 50mb)
+
+## Розробка
+
+### Локальна розробка
+
+```bash
+# Встановити залежності
 npm install
-npm run start:dev      # Development mode with hot reload
+
+# Запустити в режимі розробки
+npm run start:dev
+
+# Запустити тести
+npm test
+npm run test:e2e
+npm run test:cov
 ```
 
-### Database Operations
+### База даних
+
 ```bash
-npm run migrate        # Run migrations
-npm run db:generate    # Generate Prisma client
+# Виконати міграції
+npm run migrate
+
+# Згенерувати Prisma клієнт
+npm run db:generate
+
+# Доступ до PostgreSQL
+docker-compose exec postgres psql -U postgres -d eventdb
 ```
 
-## Scaling
+## Моніторинг
 
-The system is designed for horizontal scaling:
-- Gateway instances can be load-balanced
-- Collector services can run multiple instances
-- NATS JetStream handles message distribution
-- Database connections are managed efficiently
+### Grafana дашборди
 
-## Monitoring
+1. Відкрийте http://localhost:3000
+2. Увійдіть з admin/admin
+3. Перейдіть до дашборду "Event Processing System"
 
-### Health Checks
-All services expose:
-- `/health/live` - Liveness probe
-- `/health/ready` - Readiness probe
+Доступні метрики:
+- Прийняті події (за джерелом)
+- Оброблені події (за сервісом)
+- Невдалі події (з типом помилки)
+- Швидкість обробки подій
+- Затримка генерації звітів
 
-### Metrics
-Prometheus metrics include:
-- `events_accepted_total` - Events received by gateway
-- `events_processed_total` - Events processed by collectors
-- `events_failed_total` - Failed event processing attempts
-- `report_duration_seconds` - Report generation latency
+### Prometheus запити
 
-### Logging
-Structured JSON logs with:
-- Correlation IDs for request tracing
-- Service identification
-- Error stack traces
-- Contextual metadata
+Приклади корисних запитів:
+- `rate(events_accepted_total[5m])` - Швидкість прийому подій
+- `events_failed_total` - Загальна кількість невдалих подій
+- `histogram_quantile(0.95, report_duration_seconds_bucket)` - 95-й перцентиль часу генерації звітів
 
-## Production Considerations
+### Контейнери не запускаються
 
-- All services include graceful shutdown handling
-- Database migrations run automatically on startup
-- Health checks ensure service readiness
-- Comprehensive error handling and recovery
-- Resource limits and monitoring in place
-- Security best practices implemented
+Використайте скрипт запуску або запустіть вручну в правильному порядку.
+
+### Перегляд логів
+
+```bash
+# Всі сервіси
+docker-compose logs -f
+
+# Конкретний сервіс
+docker-compose logs -f gateway
+```
+
+## Масштабування
+
+Система підтримує горизонтальне масштабування:
+
+```bash
+# Запустити кілька екземплярів колекторів
+docker-compose up -d --scale fb-collector=3 --scale ttk-collector=3
+```
+
+## Безпека
+
+- Використовуються UUID для первинних ключів
+- Валідація всіх вхідних даних через Zod схеми
+- Структуроване логування з correlation ID
+- Graceful shutdown для всіх сервісів
+- Обмеження розміру запитів
