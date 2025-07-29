@@ -136,14 +136,12 @@ services:
       retries: 5
       start_period: 60s
 
-  # Publisher - starts after all services are healthy
+# Publisher - starts after all services are healthy
   publisher:
     image: andriiuni/events:latest
     restart: unless-stopped
     environment:
       EVENT_ENDPOINT: http://gateway:3001/events
-      # Optional: Add batch size configuration if supported
-      BATCH_SIZE: 1000
     depends_on:
       gateway:
         condition: service_healthy

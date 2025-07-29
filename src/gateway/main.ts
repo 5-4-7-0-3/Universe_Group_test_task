@@ -3,19 +3,18 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { GatewayModule } from './gateway.module';
 import { Logger } from '../shared/utils/logger';
-import * as bodyParser from 'body-parser';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const logger = new Logger({ service: 'Gateway' });
 
   try {
-    const app = await NestFactory.create(GatewayModule, {
-      bodyParser: false, // Disable default body parser
-    });
+    const app = await NestFactory.create(GatewayModule);
 
     // Configure body parser with increased limit
-    app.use(bodyParser.json({ limit: '50mb' }));
-    app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+    const bodyLimit = process.env.BODY_SIZE_LIMIT || '50mb';
+    app.use(json({ limit: bodyLimit }));
+    app.use(urlencoded({ limit: bodyLimit, extended: true }));
 
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
     app.enableCors();

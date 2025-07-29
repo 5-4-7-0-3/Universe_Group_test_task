@@ -14,7 +14,6 @@ import {
   StorageType,
   headers as createHeaders,
   MsgHdrs,
-  DiscardPolicy,
 } from 'nats';
 import { Logger } from '../utils/logger';
 
@@ -25,32 +24,39 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
   private jsm: JetStreamManager;
   private readonly stringCodec = StringCodec();
   private readonly logger = new Logger({ service: 'NatsService' });
-  private initializationPromise: Promise<void>;
-  private isReady = false;
+  private isConnected = false;
+  private connectPromise: Promise<void>;
 
   constructor(private configService: ConfigService) { }
 
   async onModuleInit() {
-    await this.initialize();
+    this.connectPromise = this.initializeConnection();
+    await this.connectPromise;
   }
 
   async onModuleDestroy() {
     if (this.connection) {
       await this.connection.close();
-      this.logger.info('NATS connection closed');
+      this.isConnected = false;
     }
   }
 
-  private async initialize() {
-    try {
-      await this.connect();
-      await this.setupStreams();
-      this.isReady = true;
-      this.logger.info('NATS service fully initialized');
-    } catch (error) {
-      this.logger.error('Failed to initialize NATS service', error);
-      throw error;
+  private async initializeConnection() {
+    await this.connect();
+    await this.setupStreams();
+  }
+
+  async ensureConnected(): Promise<void> {
+    if (this.isConnected) {
+      return;
     }
+
+    if (this.connectPromise) {
+      await this.connectPromise;
+      return;
+    }
+
+    throw new Error('NATS service not initialized');
   }
 
   private async connect() {
@@ -59,34 +65,16 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
       'nats://localhost:4222'
     );
 
-    const maxRetries = 10;
-    const retryDelay = 5000; // 5 seconds
+    try {
+      this.connection = await connect({ servers: natsUrl });
+      this.jetstream = this.connection.jetstream();
+      this.jsm = await this.connection.jetstreamManager();
+      this.isConnected = true;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        this.logger.info(`Attempting to connect to NATS (attempt ${attempt}/${maxRetries})`, { natsUrl });
-
-        this.connection = await connect({
-          servers: natsUrl,
-          reconnect: true,
-          maxReconnectAttempts: -1,
-          waitOnFirstConnect: true,
-        });
-
-        this.jetstream = this.connection.jetstream();
-        this.jsm = await this.connection.jetstreamManager();
-
-        this.logger.info('Connected to NATS server', { natsUrl });
-        return;
-      } catch (error) {
-        this.logger.error(`Failed to connect to NATS (attempt ${attempt}/${maxRetries})`, error, { natsUrl });
-
-        if (attempt === maxRetries) {
-          throw error;
-        }
-
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
+      this.logger.info('Connected to NATS server', { natsUrl });
+    } catch (error) {
+      this.logger.error('Failed to connect to NATS server', error, { natsUrl });
+      throw error;
     }
   }
 
@@ -100,35 +88,23 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
 
     for (const streamConfig of streams) {
       try {
-        // Check if stream exists
-        try {
-          const existingStream = await this.jsm.streams.info(streamConfig.name);
-          this.logger.info('Stream already exists', {
-            stream: streamConfig.name,
-            state: existingStream.state
-          });
-          continue;
-        } catch (error) {
-          // Stream doesn't exist, create it
-        }
-
-        // Create new stream
         await this.jsm.streams.add({
           name: streamConfig.name,
           subjects: streamConfig.subjects,
           retention: RetentionPolicy.Limits,
-          max_age: 7 * 24 * 60 * 60 * 1_000_000_000, // 7 days in nanoseconds
+          max_age: 7 * 24 * 60 * 60 * 1_000_000_000,
           storage: StorageType.File,
-          num_replicas: 1,
-          discard: DiscardPolicy.Old,
         });
-
-        this.logger.info('Stream created', { stream: streamConfig.name });
+        this.logger.info('Stream configured', { stream: streamConfig.name });
       } catch (error) {
-        this.logger.error('Failed to setup stream', error, {
-          stream: streamConfig.name,
-        });
-        throw error;
+        if ((error as Error).message.includes('already exists')) {
+          this.logger.info('Stream already exists', { stream: streamConfig.name });
+        } else {
+          this.logger.error('Failed to create stream', error, {
+            stream: streamConfig.name,
+          });
+          throw error;
+        }
       }
     }
   }
@@ -138,7 +114,7 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
     data: any,
     correlationId?: string
   ): Promise<void> {
-    await this.waitForReady();
+    await this.ensureConnected();
 
     try {
       const payload = this.stringCodec.encode(JSON.stringify(data));
@@ -152,7 +128,7 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
 
       await this.jetstream.publish(subject, payload, { headers: hdrs });
 
-      this.logger.debug('Message published', { subject, correlationId });
+      this.logger.info('Message published', { subject, correlationId });
     } catch (error) {
       this.logger.error('Failed to publish message', error, { subject, correlationId });
       throw error;
@@ -160,25 +136,14 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getJetStream(): Promise<JetStreamClient> {
-    await this.waitForReady();
+    await this.ensureConnected();
     return this.jetstream;
   }
 
-  async getConnection(): Promise<NatsConnection> {
-    await this.waitForReady();
-    return this.connection;
-  }
-
-  async waitForReady(): Promise<void> {
-    const maxWaitTime = 60000; // 60 seconds
-    const checkInterval = 100;
-    const startTime = Date.now();
-
-    while (!this.isReady) {
-      if (Date.now() - startTime > maxWaitTime) {
-        throw new Error('NATS service initialization timeout');
-      }
-      await new Promise(resolve => setTimeout(resolve, checkInterval));
+  getConnection(): NatsConnection {
+    if (!this.isConnected) {
+      throw new Error('NATS not connected');
     }
+    return this.connection;
   }
 }

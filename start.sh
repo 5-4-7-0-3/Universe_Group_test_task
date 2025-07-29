@@ -38,7 +38,19 @@ echo "Starting infrastructure services..."
 docker-compose up -d postgres nats
 
 # Wait for infrastructure to be ready
-sleep 10
+echo "Waiting for PostgreSQL..."
+until docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; do
+    echo "  PostgreSQL not ready yet..."
+    sleep 3
+done
+echo "✓ PostgreSQL is ready"
+
+echo "Waiting for NATS..."
+until curl -f -s http://localhost:8222/healthz > /dev/null 2>&1; do
+    echo "  NATS not ready yet..."
+    sleep 3
+done
+echo "✓ NATS is ready"
 
 # Start gateway
 echo ""
@@ -98,4 +110,4 @@ echo "  - Grafana: http://localhost:3000 (admin/admin)"
 echo "  - Prometheus: http://localhost:9090"
 echo ""
 echo "To view logs: docker-compose logs -f [service-name]"
-echo "To stop all services: docker-compose down"    
+echo "To stop all services: docker-compose down"

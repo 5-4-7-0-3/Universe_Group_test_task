@@ -34,7 +34,7 @@ else
 fi
 
 # Check NATS
-if docker-compose exec -T nats nats server ping > /dev/null 2>&1; then
+if curl -f -s http://localhost:8222/healthz > /dev/null 2>&1; then
     echo "✓ NATS: HEALTHY"
 else
     echo "✗ NATS: UNHEALTHY"
